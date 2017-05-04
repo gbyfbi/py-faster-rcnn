@@ -69,6 +69,37 @@ def vis_detections(im, class_name, dets, thresh=0.5):
     plt.tight_layout()
     plt.draw()
 
+
+def vis_detections_from_tensorflow(im, class_name, dets, ax, thresh=0.5):
+    """Draw detected bounding boxes."""
+    inds = np.where(dets[:, -1] >= thresh)[0]
+    if len(inds) == 0:
+        return
+
+    for i in inds:
+        bbox = dets[i, :4]
+        score = dets[i, -1]
+
+        ax.add_patch(
+            plt.Rectangle((bbox[0], bbox[1]),
+                          bbox[2] - bbox[0],
+                          bbox[3] - bbox[1], fill=False,
+                          edgecolor='red', linewidth=3.5)
+        )
+        ax.text(bbox[0], bbox[1] - 2,
+                '{:s} {:.3f}'.format(class_name, score),
+                bbox=dict(facecolor='blue', alpha=0.5),
+                fontsize=14, color='white')
+
+    ax.set_title(('{} detections with '
+                  'p({} | box) >= {:.1f}').format(class_name, class_name,
+                                                  thresh),
+                 fontsize=14)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.draw()
+
+
 def demo(net, image_name):
     """Detect object classes in an image using pre-computed object proposals."""
 
@@ -96,6 +127,41 @@ def demo(net, image_name):
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
         vis_detections(im, cls, dets, thresh=CONF_THRESH)
+
+
+def demo_from_tensorflow(net, image_name):
+    """Detect object classes in an image using pre-computed object proposals."""
+
+    # Load the demo image
+    im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
+    #im_file = os.path.join('/home/corgi/Lab/label/pos_frame/ACCV/training/000001/',image_name)
+    im = cv2.imread(im_file)
+
+    # Detect all object classes and regress object bounds
+    timer = Timer()
+    timer.tic()
+    scores, boxes = im_detect(net, im)
+    timer.toc()
+    print ('Detection took {:.3f}s for '
+           '{:d} object proposals').format(timer.total_time, boxes.shape[0])
+
+    # Visualize detections for each class
+    im = im[:, :, (2, 1, 0)]
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.imshow(im, aspect='equal')
+
+    CONF_THRESH = 0.8
+    NMS_THRESH = 0.3
+    for cls_ind, cls in enumerate(CLASSES[1:]):
+        cls_ind += 1 # because we skipped background
+        cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
+        cls_scores = scores[:, cls_ind]
+        dets = np.hstack((cls_boxes,
+                          cls_scores[:, np.newaxis])).astype(np.float32)
+        keep = nms(dets, NMS_THRESH)
+        dets = dets[keep, :]
+        vis_detections_from_tensorflow(im, cls, dets, ax, thresh=CONF_THRESH)
+
 
 def parse_args():
     """Parse input arguments."""
@@ -143,9 +209,14 @@ if __name__ == '__main__':
 
     im_names = ['000456.jpg', '000542.jpg', '001150.jpg',
                 '001763.jpg', '004545.jpg']
+    import glob
+    im_path_list = glob.glob(cfg.DATA_DIR+"/demo/*.*g")
+    im_names = map(lambda p: os.path.basename(p), im_path_list)
+
     for im_name in im_names:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for data/demo/{}'.format(im_name)
-        demo(net, im_name)
+        # demo(net, im_name)
+        demo_from_tensorflow(net, im_name)
 
     plt.show()
