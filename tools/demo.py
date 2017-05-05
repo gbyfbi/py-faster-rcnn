@@ -33,6 +33,9 @@ CLASSES = ('__background__',
 
 NETS = {'vgg16': ('VGG16',
                   'VGG16_faster_rcnn_final.caffemodel'),
+        'VGG_CNN_M_1024': ('VGG_CNN_M_1024',
+                  'vgg_cnn_m_1024_faster_rcnn_iter_160000.caffemodel'),
+        # 'vgg_cnn_m_1024_faster_rcnn_final.caffemodel'),
         'zf': ('ZF',
                   'ZF_faster_rcnn_final.caffemodel')}
 
